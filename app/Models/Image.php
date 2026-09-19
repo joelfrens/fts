@@ -3,6 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use App\Enums\StorageDriver;
 
 class Image extends Model
 {
@@ -20,6 +21,7 @@ class Image extends Model
         'file_size' => 'integer',
         'width' => 'integer',
         'height' => 'integer',
+        'storage_driver' => StorageDriver::class,
     ];
 
 }
