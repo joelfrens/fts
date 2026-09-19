@@ -8,7 +8,7 @@ interface ImageStorageInterface
 {
     public function store(
         string $contents,
-        string $key,
+        string $storageKey,
         string $contentType,
     ): StoredImage;
 }
