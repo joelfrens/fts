@@ -5,20 +5,54 @@ namespace App\Services\Storage;
 use App\Contracts\ImageStorageInterface;
 use App\Data\StoredImage;
 use App\Enums\StorageDriver;
+use Illuminate\Support\Facades\Http;
+use RuntimeException;
+use Illuminate\Http\Client\ConnectionException;
 
-class AzureImageStorage implements ImageStorageInterface
+
+final class AzureImageStorage implements ImageStorageInterface
 {
-    /**
-     * Stores the image on Azure.
-     * 
-     * @param string $contents The contents of the image.
-     * @param string $storageKey The key of the image.
-     * @param string $contentType The content type of the image.
-     * @return StoredImage The stored image.
-     */
-    public function store(string $contents, string $storageKey, string $contentType): StoredImage
-    {
-        // TODO: Implement store method
+    public function store(
+        string $contents,
+        string $storageKey,
+        string $contentType,
+    ): StoredImage {
+        $sasUrl = config('image-storage.azure.blob_sas_url');
+
+        if (! is_string($sasUrl) || $sasUrl === '') {
+            throw new RuntimeException(
+                'Azure Blob SAS URL is not configured.'
+            );
+        }
+
+        $blobUrl = $this->buildBlobUrl(
+            sasUrl: $sasUrl,
+            storageKey: $storageKey,
+        );
+
+        try {
+            $response = Http::connectTimeout(3)
+                ->timeout(10)
+                ->withHeaders([
+                    'x-ms-blob-type' => 'BlockBlob',
+                ])
+                ->withBody($contents, $contentType)
+                ->put($blobUrl);
+        } catch (ConnectionException $exception) {
+            throw new RuntimeException(
+                'Unable to connect to Azure Blob Storage.',
+                previous: $exception,
+            );
+        }
+
+        if (! $response->successful()) {
+            throw new RuntimeException(
+                sprintf(
+                    'Azure Blob upload failed with status %d.',
+                    $response->status(),
+                )
+            );
+        }
 
         return new StoredImage(
             storageKey: $storageKey,
@@ -27,4 +61,39 @@ class AzureImageStorage implements ImageStorageInterface
             storageDriver: StorageDriver::Azure,
         );
     }
-}   
+
+    private function buildBlobUrl(
+        string $sasUrl,
+        string $storageKey,
+    ): string {
+        $parts = parse_url($sasUrl);
+
+        if (
+            $parts === false ||
+            ! isset(
+                $parts['scheme'],
+                $parts['host'],
+                $parts['path'],
+                $parts['query'],
+            )
+        ) {
+            throw new RuntimeException(
+                'Invalid Azure Blob SAS URL.'
+            );
+        }
+
+        $baseUrl = sprintf(
+            '%s://%s%s',
+            $parts['scheme'],
+            $parts['host'],
+            rtrim($parts['path'], '/'),
+        );
+
+        return sprintf(
+            '%s/%s?%s',
+            $baseUrl,
+            ltrim($storageKey, '/'),
+            $parts['query'],
+        );
+    }
+}
