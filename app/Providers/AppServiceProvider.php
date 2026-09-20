@@ -8,8 +8,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
 use App\Contracts\ImageStorageInterface;
-use App\Services\LocalImageStorage;
-use App\Services\AzureImageStorage;
+use App\Services\Storage\LocalImageStorage;
+use App\Services\Storage\AzureImageStorage;
 use RuntimeException;
 
 class AppServiceProvider extends ServiceProvider
