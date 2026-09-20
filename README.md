@@ -16,6 +16,8 @@ Laravel image storage app with pluggable drivers (local and Azure).
 
 There is no authentication on this endpoint yet.
 
+OpenAPI: [`docs/openapi.yaml`](docs/openapi.yaml)
+
 ### `POST /api/images`
 
 Create a new image. Send `multipart/form-data` with a single file field named `image`.
@@ -125,4 +127,4 @@ To add a backend, implement the interface and add a `match` arm in `AppServicePr
 
 **`LocalImageStorage`** writes to Laravel's `public` disk (`storage/app/public`). `put()` failure throws `RuntimeException`. Returns `StoredImage` with `StorageDriver::Local`.
 
-**`AzureImageStorage`** is a stub. It returns `StoredImage` with `StorageDriver::Azure` but does not upload to Azure yet.
+**`AzureImageStorage`** @todo Implement this service to post image to Azure BLOB.

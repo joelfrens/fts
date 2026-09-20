@@ -1,0 +1,138 @@
+openapi: 3.0.3
+info:
+  title: FTS Images API
+  version: 1.0.0
+  description: |
+    Image upload API exposed by `App\Http\Controllers\ImageController`.
+
+    Uploaded JPEG and PNG files are validated, resized to a maximum of 1024×1024,
+    stored with the configured driver (`FTS_STORAGE_DRIVER`), and recorded in the
+    `images` table.
+
+servers:
+  - url: http://fts.test
+    description: Local Herd
+
+paths:
+  /api/images:
+    post:
+      operationId: storeImage
+      summary: Upload an image
+      description: |
+        Accepts `multipart/form-data` with a single `image` file.
+
+        Implemented by `ImageController::store`. There is no authentication on
+        this endpoint yet.
+      tags:
+        - Images
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/StoreImageRequest'
+      responses:
+        '201':
+          description: Image stored and audit row created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StoreImageResponse'
+              example:
+                data:
+                  id: 1
+                  storage_key: images/9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d.jpg
+                  content_type: image/jpeg
+                  width: 1024
+                  height: 768
+        '422':
+          description: Validation failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationError'
+              examples:
+                missing:
+                  summary: Missing file
+                  value:
+                    message: The image field is required.
+                    errors:
+                      image:
+                        - The image field is required.
+                invalidType:
+                  summary: Unsupported type
+                  value:
+                    message: The image field must be a file of type jpg, jpeg, png.
+                    errors:
+                      image:
+                        - The image field must be a file of type jpg, jpeg, png.
+
+components:
+  schemas:
+    StoreImageRequest:
+      type: object
+      required:
+        - image
+      properties:
+        image:
+          type: string
+          format: binary
+          description: JPEG or PNG file, maximum 10 MB.
+
+    StoreImageResponse:
+      type: object
+      required:
+        - data
+      properties:
+        data:
+          $ref: '#/components/schemas/Image'
+
+    Image:
+      type: object
+      required:
+        - id
+        - storage_key
+        - content_type
+        - width
+        - height
+      properties:
+        id:
+          type: integer
+          format: int64
+          example: 1
+        storage_key:
+          type: string
+          example: images/9b1deb4d-3b7d-4bad-9bdd-2b0d7b3dcb6d.jpg
+        content_type:
+          type: string
+          enum:
+            - image/jpeg
+            - image/png
+          example: image/jpeg
+        width:
+          type: integer
+          minimum: 1
+          example: 1024
+        height:
+          type: integer
+          minimum: 1
+          example: 768
+
+    ValidationError:
+      type: object
+      required:
+        - message
+        - errors
+      properties:
+        message:
+          type: string
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items:
+              type: string
+
+tags:
+  - name: Images
+    description: Image upload endpoints
