@@ -6,6 +6,50 @@
 
 Laravel image storage app with pluggable drivers (local and Azure).
 
+## Setup
+
+Requires PHP 8.3+, Composer, Node 22, and the PHP GD extension (used by `ImageProcessor`). [Laravel Herd](https://herd.laravel.com/) is the intended local server.
+
+```bash
+git clone git@github.com:joelfrens/fts.git
+cd fts
+composer setup
+php artisan storage:link
+```
+
+`composer setup` installs PHP and Node dependencies, copies `.env.example` to `.env` if needed, generates `APP_KEY`, runs migrations, and builds frontend assets.
+
+Then set these in `.env`:
+
+```env
+APP_URL=http://fts.test
+FTS_STORAGE_DRIVER=local
+```
+
+`.env.example` defaults to SQLite. For MySQL, set `DB_CONNECTION=mysql` and the usual `DB_*` credentials, then run `php artisan migrate`.
+
+`storage:link` exposes local uploads at `/storage/...` (`storage/app/public`).
+
+Do not run `php artisan install:api`. API routing is already wired: `routes/api.php` is loaded from `bootstrap/app.php`, and `POST /api/images` is defined there. `composer setup` also installs `laravel/sanctum` from `composer.json`.
+
+### Run
+
+With Herd serving the site:
+
+```bash
+npm run dev
+```
+
+Open [http://fts.test](http://fts.test). The upload UI posts to `POST /api/images`.
+
+### Tests
+
+```bash
+php artisan test --compact
+```
+
+Tests use in-memory SQLite from `phpunit.xml` and do not need Docker or MySQL.
+
 ## Architecture
 
 ![Upload flow from the Frontend UI through the Laravel Images API, then Image Upload Service, Image Processor, and ImageUpload Interface to Azure or local storage, with a database audit record](docs/architecture.png)
@@ -31,7 +75,7 @@ curl -X POST http://fts.test/api/images \
 
 | Field | Rules |
 | --- | --- |
-| `image` | required file; `jpg`, `jpeg`, or `png`; max 10 MB |
+| `image` | required file; `jpg`, `jpeg`, or `png`; max 2 MB |
 
 Invalid requests return Laravel's standard `422` JSON error payload.
 

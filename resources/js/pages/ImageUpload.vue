@@ -8,6 +8,13 @@ const uploading = ref(false)
 const success = ref(false)
 const error = ref<string | null>(null)
 
+const ALLOWED_IMAGE_TYPES = [
+    'image/jpeg',
+    'image/png',
+]
+
+const MAX_FILE_SIZE = 10 * 1024 * 1024
+
 function handleFileChange(event: Event): void {
     clearPreview()
 
@@ -19,6 +26,23 @@ function handleFileChange(event: Event): void {
 
     if (!selectedFile) {
         file.value = null
+        return
+    }
+
+    if (!ALLOWED_IMAGE_TYPES.includes(selectedFile.type)) {
+        file.value = null
+        input.value = ''
+
+        error.value = 'Please select a JPG or PNG image.'
+        return
+    }
+
+    if (selectedFile.size > MAX_FILE_SIZE) {
+        file.value = null
+        input.value = ''
+
+        error.value =
+            'The selected image is too large. Maximum upload size is 10 MB.'
         return
     }
 
@@ -46,6 +70,13 @@ async function upload(): Promise<void> {
             },
             body: formData,
         })
+
+        if (response.status === 413) {
+            throw new Error(
+                'The selected image is too large. Maximum upload size is 2 MB.'
+            )
+        }
+
 
         const data = await response.json()
 

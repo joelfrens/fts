@@ -18,7 +18,7 @@ final class StoreImageRequest extends FormRequest
             'image' => [
                 'required',
                 File::types(['jpg', 'jpeg', 'png'])
-                    ->max('10mb'),
+                    ->max('1mb'),
             ],
         ];
     }
