@@ -7,6 +7,10 @@ use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
+use App\Contracts\ImageStorageInterface;
+use App\Services\LocalImageStorage;
+use App\Services\AzureImageStorage;
+use RuntimeException;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -15,7 +19,19 @@ class AppServiceProvider extends ServiceProvider
      */
     public function register(): void
     {
-        //
+        $this->app->bind(
+            ImageStorageInterface::class,
+            function ($app) {
+                return match (config('image-storage.driver')) {
+                    'local' => $app->make(LocalImageStorage::class),
+                    'azure' => $app->make(AzureImageStorage::class),
+
+                    default => throw new RuntimeException(
+                        'Unsupported image storage driver.'
+                    ),
+                };
+            }
+        );
     }
 
     /**
