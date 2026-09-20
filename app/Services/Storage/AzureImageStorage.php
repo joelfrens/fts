@@ -68,12 +68,15 @@ final class AzureImageStorage implements ImageStorageInterface
     ): string {
         $parts = parse_url($sasUrl);
 
+        $container = config(
+            'image-storage.azure.blob_container'
+        );
+
         if (
             $parts === false ||
             ! isset(
                 $parts['scheme'],
                 $parts['host'],
-                $parts['path'],
                 $parts['query'],
             )
         ) {
@@ -82,16 +85,20 @@ final class AzureImageStorage implements ImageStorageInterface
             );
         }
 
-        $baseUrl = sprintf(
-            '%s://%s%s',
-            $parts['scheme'],
-            $parts['host'],
-            rtrim($parts['path'], '/'),
-        );
+        if (
+            ! is_string($container) ||
+            $container === ''
+        ) {
+            throw new RuntimeException(
+                'Azure Blob container is not configured.'
+            );
+        }
 
         return sprintf(
-            '%s/%s?%s',
-            $baseUrl,
+            '%s://%s/%s/%s?%s',
+            $parts['scheme'],
+            $parts['host'],
+            trim($container, '/'),
             ltrim($storageKey, '/'),
             $parts['query'],
         );

@@ -13,10 +13,16 @@ final class AzureImageStorageTest extends TestCase
 {
     public function test_it_stores_image_in_azure(): void
     {
-        config()->set(
-            'image-storage.azure.blob_sas_url',
-            'https://account.blob.core.windows.net/container?sv=test&sig=test'
-        );
+        config()->set([
+            'image-storage.azure.blob_sas_url' =>
+                'https://account.blob.core.windows.net/?sv=test&sig=test',
+
+            'image-storage.azure.blob_container' =>
+                'container',
+
+            'image-storage.azure.public_url' =>
+                'https://account.blob.core.windows.net/container',
+        ]);
 
         Http::fake([
             '*' => Http::response('', 201),

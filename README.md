@@ -75,7 +75,7 @@ curl -X POST http://fts.test/api/images \
 
 | Field | Rules |
 | --- | --- |
-| `image` | required file; `jpg`, `jpeg`, or `png`; max 2 MB |
+| `image` | required file; `jpg`, `jpeg`, or `png`; max 1 MB |
 
 Invalid requests return Laravel's standard `422` JSON error payload.
 
