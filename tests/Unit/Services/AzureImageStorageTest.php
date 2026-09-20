@@ -11,8 +11,11 @@ use Tests\TestCase;
 
 final class AzureImageStorageTest extends TestCase
 {
-    public function test_it_stores_image_in_azure(): void
+
+    protected function setUp(): void
     {
+        parent::setUp();
+
         config()->set([
             'image-storage.azure.blob_sas_url' =>
                 'https://account.blob.core.windows.net/?sv=test&sig=test',
@@ -23,7 +26,10 @@ final class AzureImageStorageTest extends TestCase
             'image-storage.azure.public_url' =>
                 'https://account.blob.core.windows.net/container',
         ]);
+    }
 
+    public function test_it_stores_image_in_azure(): void
+    {
         Http::fake([
             '*' => Http::response('', 201),
         ]);
@@ -75,11 +81,6 @@ final class AzureImageStorageTest extends TestCase
 
     public function test_it_throws_exception_when_azure_fails(): void
     {
-        config()->set(
-            'image-storage.azure.blob_sas_url',
-            'https://account.blob.core.windows.net/container?sv=test&sig=test'
-        );
-
         Http::fake([
             '*' => Http::response('', 500),
         ]);
@@ -123,11 +124,6 @@ final class AzureImageStorageTest extends TestCase
 
     public function test_it_throws_exception_when_azure_cannot_be_reached(): void
     {
-        config()->set(
-            'image-storage.azure.blob_sas_url',
-            'https://account.blob.core.windows.net/container?sv=test&sig=test'
-        );
-
         Http::fake([
             '*' => Http::failedConnection(),
         ]);
