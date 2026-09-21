@@ -12,17 +12,17 @@ final class ImageController extends Controller
         StoreImageRequest $request,
         ImageUploadService $imageUploadService,
     ): JsonResponse {
-        $image = $imageUploadService->upload(
+        $uploadedImage = $imageUploadService->upload(
             $request->file('image')
         );
 
         return response()->json([
             'data' => [
-                'id' => $image->id,
-                'storage_key' => $image->storage_key,
-                'content_type' => $image->content_type,
-                'width' => $image->width,
-                'height' => $image->height,
+                'id' => $uploadedImage->image->id,
+                'url' => $uploadedImage->url,
+                'content_type' => $uploadedImage->image->content_type,
+                'width' => $uploadedImage->image->width,
+                'height' => $uploadedImage->image->height,
             ],
         ], 201);
     }

@@ -62,6 +62,25 @@ final class AzureImageStorage implements ImageStorageInterface
         );
     }
 
+    public function url(string $storageKey): string
+    {
+        $publicUrl = config(
+            'image-storage.azure.public_url'
+        );
+
+        if (! is_string($publicUrl) || $publicUrl === '') {
+            throw new RuntimeException(
+                'Azure Blob public URL is not configured.'
+            );
+        }
+
+        return sprintf(
+            '%s/%s',
+            rtrim($publicUrl, '/'),
+            ltrim($storageKey, '/'),
+        );
+    }
+
     private function buildBlobUrl(
         string $sasUrl,
         string $storageKey,

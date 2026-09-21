@@ -7,6 +7,7 @@ use App\Data\ImageProcessingOptions;
 use App\Models\Image;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Str;
+use App\Data\UploadedImage;
 
 final class ImageUploadService
 {
@@ -15,7 +16,7 @@ final class ImageUploadService
         private ImageStorageInterface $imageStorage,
     ) {}
 
-    public function upload(UploadedFile $file): Image
+    public function upload(UploadedFile $file): UploadedImage
     {
         $processedImage = $this->imageProcessor->process(
             $file,
@@ -42,7 +43,7 @@ final class ImageUploadService
             contentType: $processedImage->contentType,
         );
 
-        return Image::create([
+        $image = Image::create([
             'storage_key' => $storedImage->storageKey,
             'original_filename' => $file->getClientOriginalName(),
             'storage_driver' => $storedImage->storageDriver,
@@ -51,5 +52,10 @@ final class ImageUploadService
             'width' => $processedImage->width,
             'height' => $processedImage->height,
         ]);
+
+        return new UploadedImage(
+            image: $image,
+            url: $this->imageStorage->url($storageKey),
+        );
     }
 }

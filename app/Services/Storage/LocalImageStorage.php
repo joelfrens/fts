@@ -32,4 +32,9 @@ class LocalImageStorage implements ImageStorageInterface
         );
     }           
 
+    public function url(string $storageKey): string
+    {
+        return Storage::disk('public')->url($storageKey);
+    }
+
 }

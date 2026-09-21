@@ -12,6 +12,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
+use App\Data\UploadedImage;
 
 final class ImageUploadServiceTest extends TestCase
 {
@@ -41,34 +42,34 @@ final class ImageUploadServiceTest extends TestCase
 
         $image = $this->service->upload($file);
 
-        $this->assertInstanceOf(Image::class, $image);
+        $this->assertInstanceOf(UploadedImage::class, $image);
 
         $this->assertSame(
             'holiday.jpg',
-            $image->original_filename
+            $image->image->original_filename
         );
 
         $this->assertSame(
             'image/jpeg',
-            $image->content_type
+            $image->image->content_type
         );
 
         $this->assertSame(
             StorageDriver::Local,
-            $image->storage_driver
+            $image->image->storage_driver
         );
 
-        $this->assertSame(1024, $image->width);
-        $this->assertSame(512, $image->height);
+        $this->assertSame(1024, $image->image->width);
+        $this->assertSame(512, $image->image->height);
 
         Storage::disk('public')->assertExists(
-            $image->storage_key
+            $image->image->storage_key
         );
 
         $this->assertDatabaseHas('images', [
-            'id' => $image->id,
+            'id' => $image->image->id,
             'original_filename' => 'holiday.jpg',
-            'storage_key' => $image->storage_key,
+            'storage_key' => $image->image->storage_key,
             'storage_driver' => StorageDriver::Local->value,
             'content_type' => 'image/jpeg',
             'width' => 1024,

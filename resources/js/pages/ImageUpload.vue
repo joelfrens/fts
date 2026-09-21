@@ -1,12 +1,17 @@
 <script setup lang="ts">
-import { Head } from '@inertiajs/vue3'
-import { onUnmounted, ref } from 'vue'
+import { ref } from 'vue'
 
-const file = ref<File | null>(null)
-const previewUrl = ref<string | null>(null)
-const uploading = ref(false)
-const success = ref(false)
-const error = ref<string | null>(null)
+interface UploadedImage {
+    id: number
+    url: string
+    content_type: string
+    width: number
+    height: number
+}
+
+interface UploadResponse {
+    data: UploadedImage
+}
 
 const ALLOWED_IMAGE_TYPES = [
     'image/jpeg',
@@ -15,11 +20,18 @@ const ALLOWED_IMAGE_TYPES = [
 
 const MAX_FILE_SIZE = 10 * 1024 * 1024
 
-function handleFileChange(event: Event): void {
-    clearPreview()
+const file = ref<File | null>(null)
+const fileInput = ref<HTMLInputElement | null>(null)
+const uploadedImage = ref<UploadedImage | null>(null)
 
+const uploading = ref(false)
+const success = ref(false)
+const error = ref<string | null>(null)
+
+function handleFileChange(event: Event): void {
     success.value = false
     error.value = null
+    uploadedImage.value = null
 
     const input = event.target as HTMLInputElement
     const selectedFile = input.files?.[0]
@@ -34,6 +46,7 @@ function handleFileChange(event: Event): void {
         input.value = ''
 
         error.value = 'Please select a JPG or PNG image.'
+
         return
     }
 
@@ -43,14 +56,14 @@ function handleFileChange(event: Event): void {
 
         error.value =
             'The selected image is too large. Maximum upload size is 10 MB.'
+
         return
     }
 
     file.value = selectedFile
-    previewUrl.value = URL.createObjectURL(selectedFile)
 }
 
-async function upload(): Promise<void> {
+async function uploadImage(): Promise<void> {
     if (!file.value || uploading.value) {
         return
     }
@@ -58,9 +71,14 @@ async function upload(): Promise<void> {
     uploading.value = true
     success.value = false
     error.value = null
+    uploadedImage.value = null
 
     const formData = new FormData()
-    formData.append('image', file.value)
+
+    formData.append(
+        'image',
+        file.value,
+    )
 
     try {
         const response = await fetch('/api/images', {
@@ -73,22 +91,34 @@ async function upload(): Promise<void> {
 
         if (response.status === 413) {
             throw new Error(
-                'The selected image is too large. Maximum upload size is 2 MB.'
+                'The selected image is too large. Maximum upload size is 1 MB.'
             )
         }
 
-
-        const data = await response.json()
+        const result = await response.json()
 
         if (!response.ok) {
             throw new Error(
-                data.errors?.image?.[0] ??
-                data.message ??
-                'Unable to upload image.'
+                result.errors?.image?.[0] ??
+                    result.message ??
+                    'Unable to upload image.'
             )
         }
 
+        const uploadResponse =
+            result as UploadResponse
+
+        uploadedImage.value =
+            uploadResponse.data
+
         success.value = true
+
+        // Clear the selected file after a successful upload.
+        file.value = null
+
+        if (fileInput.value) {
+            fileInput.value.value = ''
+        }
     } catch (exception) {
         error.value =
             exception instanceof Error
@@ -99,178 +129,281 @@ async function upload(): Promise<void> {
     }
 }
 
-function clearPreview(): void {
-    if (previewUrl.value) {
-        URL.revokeObjectURL(previewUrl.value)
-        previewUrl.value = null
+function formatFileSize(bytes: number): string {
+    if (bytes < 1024) {
+        return `${bytes} B`
     }
-}
 
-onUnmounted(clearPreview)
+    if (bytes < 1024 * 1024) {
+        return `${(bytes / 1024).toFixed(1)} KB`
+    }
+
+    return `${(
+        bytes /
+        (1024 * 1024)
+    ).toFixed(1)} MB`
+}
 </script>
 
 <template>
-    <Head title="Image Upload" />
-
     <main class="page">
-        <section class="card">
-            <header>
-                <h1>Upload an image</h1>
-                <p>Choose a JPG or PNG image to upload.</p>
+        <section class="upload-card">
+            <header class="header">
+                <h1>Upload image</h1>
+
+                <p>
+                    Upload a JPG or PNG image. Images larger
+                    than 1024 × 1024 will be resized while
+                    preserving their aspect ratio.
+                </p>
             </header>
 
-            <label class="file-picker">
-                Choose image
-
-                <input
-                    type="file"
-                    accept="image/jpeg,image/png"
-                    @change="handleFileChange"
-                >
-            </label>
-
-            <div
-                v-if="file && previewUrl"
-                class="preview-container"
+            <form
+                class="upload-form"
+                @submit.prevent="uploadImage"
             >
-                <img
-                    :src="previewUrl"
-                    alt="Selected image preview"
-                    class="preview"
-                >
+                <div class="file-section">
+                    <input
+                        id="image"
+                        ref="fileInput"
+                        type="file"
+                        accept="image/jpeg,image/png"
+                        class="file-input"
+                        @change="handleFileChange"
+                    >
 
-                <div class="file-details">
-                    <span>{{ file.name }}</span>
+                    <label
+                        for="image"
+                        class="choose-button"
+                    >
+                        Choose image
+                    </label>
 
-                    <span>
-                        {{ (file.size / 1024 / 1024).toFixed(2) }} MB
-                    </span>
+                    <div
+                        v-if="file"
+                        class="selected-file"
+                    >
+                        <p class="file-name">
+                            {{ file.name }}
+                        </p>
+
+                        <p class="file-size">
+                            {{ formatFileSize(file.size) }}
+                        </p>
+                    </div>
                 </div>
-            </div>
 
-            <button
-                type="button"
-                class="upload-button"
-                :disabled="!file || uploading"
-                @click="upload"
-            >
-                {{ uploading ? 'Uploading...' : 'Upload image' }}
-            </button>
+                <div
+                    v-if="error"
+                    class="message error-message"
+                    role="alert"
+                >
+                    {{ error }}
+                </div>
 
-            <p
-                v-if="success"
-                class="message success"
-            >
-                Image uploaded successfully.
-            </p>
+                <div class="actions">
+                    <button
+                        type="submit"
+                        class="upload-button"
+                        :disabled="!file || uploading"
+                    >
+                        {{
+                            uploading
+                                ? 'Uploading...'
+                                : 'Upload image'
+                        }}
+                    </button>
+                </div>
+            </form>
 
-            <p
-                v-if="error"
-                class="message error"
+            <section
+                v-if="success && uploadedImage"
+                class="uploaded-section"
             >
-                {{ error }}
-            </p>
+                <div
+                    class="message success-message"
+                    role="status"
+                >
+                    Image uploaded successfully.
+                </div>
+
+                <div class="uploaded-content">
+                    <h2>Uploaded image</h2>
+
+                    <img
+                        :src="uploadedImage.url"
+                        alt="Uploaded image"
+                        class="uploaded-image"
+                    >
+
+                    <div class="image-details">
+                        <p>
+                            {{ uploadedImage.width }}
+                            ×
+                            {{ uploadedImage.height }}
+                        </p>
+
+                        <p>
+                            {{ uploadedImage.content_type }}
+                        </p>
+                    </div>
+
+                    <a
+                        :href="uploadedImage.url"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="image-link"
+                    >
+                        Open uploaded image
+                    </a>
+                </div>
+            </section>
         </section>
     </main>
 </template>
 
 <style scoped>
 .page {
-    display: flex;
     min-height: 100vh;
+    display: flex;
     align-items: center;
     justify-content: center;
     padding: 24px;
-    background: #f5f6f8;
-    font-family: system-ui, sans-serif;
+    background: #f9fafb;
+    box-sizing: border-box;
 }
 
-.card {
+.upload-card {
     width: 100%;
-    max-width: 560px;
+    max-width: 640px;
     padding: 32px;
+    background: #ffffff;
     border: 1px solid #e5e7eb;
     border-radius: 12px;
-    background: white;
-    box-shadow: 0 8px 30px rgb(0 0 0 / 6%);
+    box-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.04),
+        0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
-header {
-    margin-bottom: 24px;
+.header {
+    text-align: center;
 }
 
-h1 {
-    margin: 0 0 8px;
-    color: #111827;
-    font-size: 28px;
-}
-
-header p {
+.header h1 {
     margin: 0;
-    color: #6b7280;
+    color: #111827;
+    font-size: 24px;
+    font-weight: 600;
+    line-height: 1.3;
 }
 
-.file-picker {
-    display: inline-block;
-    padding: 10px 16px;
-    border: 1px solid #d1d5db;
-    border-radius: 8px;
-    cursor: pointer;
-}
-
-.file-picker:hover {
-    background: #f9fafb;
-}
-
-.file-picker input {
-    display: none;
-}
-
-.preview-container {
-    margin-top: 24px;
-    overflow: hidden;
-    border: 1px solid #e5e7eb;
-    border-radius: 8px;
-}
-
-.preview {
-    display: block;
-    width: 100%;
-    max-height: 360px;
-    background: #f9fafb;
-    object-fit: contain;
-}
-
-.file-details {
-    display: flex;
-    justify-content: space-between;
-    gap: 16px;
-    padding: 12px 16px;
+.header p {
+    max-width: 500px;
+    margin: 10px auto 0;
     color: #6b7280;
     font-size: 14px;
+    line-height: 1.6;
 }
 
-.file-details span:first-child {
+.upload-form {
+    margin-top: 32px;
+}
+
+.file-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.file-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
     overflow: hidden;
-    text-overflow: ellipsis;
+    clip: rect(0, 0, 0, 0);
     white-space: nowrap;
+    border: 0;
+}
+
+.choose-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 20px;
+    color: #374151;
+    background: #ffffff;
+    border: 1px solid #d1d5db;
+    border-radius: 6px;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition:
+        background 0.15s ease,
+        border-color 0.15s ease;
+}
+
+.choose-button:hover {
+    background: #f9fafb;
+    border-color: #9ca3af;
+}
+
+.choose-button:focus-within {
+    outline: 2px solid #111827;
+    outline-offset: 2px;
+}
+
+.selected-file {
+    margin-top: 16px;
+    text-align: center;
+}
+
+.selected-file p {
+    margin: 0;
+}
+
+.file-name {
+    color: #111827;
+    font-size: 14px;
+    font-weight: 500;
+    overflow-wrap: anywhere;
+}
+
+.file-size {
+    margin-top: 4px !important;
+    color: #6b7280;
+    font-size: 12px;
+}
+
+.actions {
+    display: flex;
+    justify-content: center;
+    margin-top: 24px;
 }
 
 .upload-button {
-    width: 100%;
-    margin-top: 24px;
-    padding: 12px 18px;
-    border: 0;
-    border-radius: 8px;
+    padding: 10px 24px;
+    color: #ffffff;
     background: #111827;
-    color: white;
-    font-size: 15px;
-    font-weight: 600;
+    border: 0;
+    border-radius: 6px;
+    font-size: 14px;
+    font-weight: 500;
     cursor: pointer;
+    transition:
+        background 0.15s ease,
+        opacity 0.15s ease;
 }
 
 .upload-button:hover:not(:disabled) {
-    background: #1f2937;
+    background: #374151;
+}
+
+.upload-button:focus {
+    outline: 2px solid #111827;
+    outline-offset: 2px;
 }
 
 .upload-button:disabled {
@@ -279,19 +412,99 @@ header p {
 }
 
 .message {
-    margin: 16px 0 0;
     padding: 12px 16px;
-    border-radius: 8px;
+    border-radius: 6px;
     font-size: 14px;
+    line-height: 1.5;
+    text-align: center;
 }
 
-.success {
-    background: #ecfdf5;
-    color: #047857;
-}
-
-.error {
+.error-message {
+    margin-top: 24px;
+    color: #991b1b;
     background: #fef2f2;
-    color: #b91c1c;
+    border: 1px solid #fecaca;
+}
+
+.success-message {
+    color: #166534;
+    background: #f0fdf4;
+    border: 1px solid #bbf7d0;
+}
+
+.uploaded-section {
+    margin-top: 32px;
+    padding-top: 32px;
+    border-top: 1px solid #e5e7eb;
+}
+
+.uploaded-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 24px;
+}
+
+.uploaded-content h2 {
+    margin: 0;
+    color: #111827;
+    font-size: 18px;
+    font-weight: 600;
+}
+
+.uploaded-image {
+    display: block;
+    width: auto;
+    height: auto;
+    max-width: 100%;
+    max-height: 500px;
+    margin-top: 16px;
+    border: 1px solid #e5e7eb;
+    border-radius: 8px;
+    object-fit: contain;
+}
+
+.image-details {
+    margin-top: 16px;
+    color: #6b7280;
+    font-size: 13px;
+    text-align: center;
+}
+
+.image-details p {
+    margin: 3px 0;
+}
+
+.image-link {
+    margin-top: 16px;
+    color: #111827;
+    font-size: 14px;
+    font-weight: 500;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+}
+
+.image-link:hover {
+    color: #4b5563;
+}
+
+@media (max-width: 640px) {
+    .page {
+        padding: 16px;
+        align-items: flex-start;
+    }
+
+    .upload-card {
+        margin-top: 24px;
+        padding: 24px 20px;
+    }
+
+    .header h1 {
+        font-size: 22px;
+    }
+
+    .uploaded-image {
+        max-height: 400px;
+    }
 }
 </style>

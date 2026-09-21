@@ -11,4 +11,7 @@ interface ImageStorageInterface
         string $storageKey,
         string $contentType,
     ): StoredImage;
+
+    public function url(string $storageKey): string;
+
 }
