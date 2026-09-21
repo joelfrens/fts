@@ -171,4 +171,4 @@ To add a backend, implement the interface and add a `match` arm in `AppServicePr
 
 **`LocalImageStorage`** writes to Laravel's `public` disk (`storage/app/public`). `put()` failure throws `RuntimeException`. Returns `StoredImage` with `StorageDriver::Local`.
 
-**`AzureImageStorage`** @todo Implement this service to post image to Azure BLOB.
+**`AzureImageStorage`** writes image to Azure blob.
